@@ -1,0 +1,13 @@
+{
+  "name": "gowsp-js",
+  "private": true,
+  "version": "1.0.0",
+  "author": "Jacobtread",
+  "main": "index.ts",
+  "scripts": {
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^4.5.4"
+  }
+}

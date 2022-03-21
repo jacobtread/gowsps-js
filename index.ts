@@ -16,6 +16,7 @@ interface AssertedConfig {
     reconnectTimeout: number;
 }
 
+
 /**
  * A wrapper over the {@see DataView} object that counts the length of reads and
  * writes automatically incrementing the offset for the next read. Replaces the
@@ -30,15 +31,40 @@ class WrappedDataView {
         this.wrapped = new DataView(out)
     }
 
+    getField(type: DataType): any {
+        switch (type) {
+            case DataType.String:
+                return this.getString()
+            case DataType.ByteArray:
+                return this.getByteArray()
+            default:
+                return this.getNumber(type)
+        }
+    }
+
+    putField(type: DataType, value: any): any {
+        switch (type) {
+            case DataType.String:
+                this.putString(value)
+                break
+            default:
+                this.putNumber(type, value)
+        }
+    }
+
+
+    getByteArray(): Uint8Array {
+        const length = this.getNumber(DataType.VarInt)
+        return new Uint8Array(this.wrapped.buffer, this.offset, length)
+    }
+
     getString(): string {
-        const length = this.getVarInt()
-        const arr = new Uint8Array(this.wrapped.buffer, this.offset, length)
         // @ts-ignore
-        return String.fromCharCode.apply(null, arr);
+        return String.fromCharCode.apply(null, this.getByteArray());
     }
 
     getBoolean(): boolean {
-        const value = this.getNumber(NumberType.UInt8)
+        const value = this.getNumber(DataType.UInt8)
         this.offset++
         return value == 1
     }
@@ -49,115 +75,115 @@ class WrappedDataView {
     }
 
     putString(value: string): void {
-        this.putVarInt(value.length)
+        this.putNumber(DataType.VarInt, value.length)
         for (let i = 0; i < value.length; i++) {
             this.wrapped.setUint8(this.offset, value.charCodeAt(i))
             this.offset++
         }
     }
 
-    getNumber(type: NumberType): number {
+    getNumber(type: DataType): number {
         let value: number
         switch (type) {
-            case NumberType.Int8:
+            case DataType.Int8:
                 value = this.wrapped.getInt8(this.offset);
                 this.offset += 1
                 break
-            case NumberType.UInt8:
+            case DataType.UInt8:
                 value = this.wrapped.getUint8(this.offset);
                 this.offset += 1
                 break
-            case NumberType.Int16:
+            case DataType.Int16:
                 value = this.wrapped.getInt16(this.offset);
                 this.offset += 2
                 break
-            case NumberType.UInt16:
+            case DataType.UInt16:
                 value = this.wrapped.getUint16(this.offset);
                 this.offset += 2
                 break
-            case NumberType.Int32:
+            case DataType.Int32:
                 value = this.wrapped.getInt32(this.offset);
                 this.offset += 4
                 break
-            case NumberType.UInt32:
+            case DataType.UInt32:
                 value = this.wrapped.getUint16(this.offset);
                 this.offset += 4
                 break
-            case NumberType.Float32:
+            case DataType.Float32:
                 value = this.wrapped.getFloat32(this.offset);
                 this.offset += 4
                 break
-            case NumberType.Float64:
+            case DataType.Float64:
                 value = this.wrapped.getFloat64(this.offset);
                 this.offset += 8
                 break
+            case DataType.VarInt:
+                value = 0
+                let bitOffset = 0
+                let byte
+                do {
+                    if (bitOffset == 35) return 0
+                    byte = this.wrapped.getInt8(this.offset)
+                    this.offset++
+                    value |= ((byte & 127) << bitOffset)
+                    bitOffset += 7
+                } while ((value & 128) != 0)
+                break
+            default:
+                console.error(`Given data type ${type} which is not a number`)
+                value = 0
+                break
         }
         return value
     }
 
-    putNumber(type: NumberType, value: number): void {
+    putNumber(type: DataType, value: number): void {
         switch (type) {
-            case NumberType.Int8:
+            case DataType.Int8:
                 this.wrapped.setInt8(this.offset, value);
                 this.offset += 1
                 break
-            case NumberType.UInt8:
+            case DataType.UInt8:
                 this.wrapped.setUint8(this.offset, value);
                 this.offset += 1
                 break
-            case NumberType.Int16:
+            case DataType.Int16:
                 this.wrapped.setInt16(this.offset, value);
                 this.offset += 2
                 break
-            case NumberType.UInt16:
+            case DataType.UInt16:
                 this.wrapped.setUint16(this.offset, value);
                 this.offset += 2
                 break
-            case NumberType.Int32:
+            case DataType.Int32:
                 this.wrapped.setInt32(this.offset, value);
                 this.offset += 4
                 break
-            case NumberType.UInt32:
+            case DataType.UInt32:
                 this.wrapped.setUint32(this.offset, value);
                 this.offset += 4
                 break
-            case NumberType.Float32:
+            case DataType.Float32:
                 this.wrapped.setFloat32(this.offset, value);
                 this.offset += 4
                 break
-            case NumberType.Float64:
+            case DataType.Float64:
                 this.wrapped.setFloat64(this.offset, value);
                 this.offset += 8
                 break
+            case DataType.VarInt:
+                let x = 0;
+                while (x >= 0x80) {
+                    this.putNumber(DataType.Int8, x | 0x80)
+                    x >>= 7
+                }
+                this.putNumber(DataType.Int8, x | 0x80)
+                break
         }
-    }
-
-    putVarInt(value: number): void {
-        let x = 0;
-        while (x >= 0x80) {
-            this.wrapped.setInt8(this.offset, x | 0x80)
-            x >>= 7
-            this.offset++
-        }
-        this.wrapped.setInt8(this.offset, x | 0x80)
-    }
-
-    getVarInt(): number {
-        let value = 0
-        let bitOffset = 0
-        let byte
-        do {
-            if (bitOffset == 35) return 0
-            byte = this.wrapped.getInt8(this.offset)
-            this.offset++
-            value |= ((byte & 127) << bitOffset)
-            bitOffset += 7
-        } while ((value & 128) != 0)
-        return value
     }
 }
 
-enum NumberType {
+enum DataType {
     Int8,
     Int16,
     Int32,
@@ -166,9 +192,17 @@ enum NumberType {
     UInt32,
     Float32,
     Float64,
+    VarInt,
+    String,
+    ByteArray
 }
 
 type EventName = keyof Listeners
+
+interface PacketField {
+    name: string;
+    type: DataType;
+}
 
 class BinarySocket {
 
@@ -214,7 +248,7 @@ class BinarySocket {
     private onMessage(event: MessageEvent) {
         console.log(event.data)
         const dv = new WrappedDataView(event.data as ArrayBuffer)
-        const packetId = dv.getVarInt()
+        const packetId = dv.getNumber(DataType.VarInt)
         const name = dv.getString()
         console.log(packetId, name)
     }
@@ -224,5 +258,10 @@ class BinarySocket {
         if (listener !== undefined) {
             listener(event)
         }
+    }
+
+    definePacket(id: number, struct: any) {
+
+
     }
 }

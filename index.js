@@ -170,6 +170,7 @@ var BinarySocket = /** @class */ (function () {
     function BinarySocket(url, config) {
         var _a, _b;
         this.listeners = {};
+        this.structs = new Map();
         this.url = url;
         if (!config)
             config = {};
@@ -205,8 +206,14 @@ var BinarySocket = /** @class */ (function () {
         console.log(event.data);
         var dv = new WrappedDataView(event.data);
         var packetId = dv.getNumber(DataType.VarInt);
-        var name = dv.getString();
-        console.log(packetId, name);
+        var struct = this.structs.get(packetId);
+        var out = {};
+        if (struct != undefined) {
+            for (var _i = 0, struct_1 = struct; _i < struct_1.length; _i++) {
+                var _a = struct_1[_i], name_1 = _a.name, type = _a.type;
+                out[name_1] = dv.getField(type);
+            }
+        }
     };
     BinarySocket.prototype.pushEvent = function (key, event) {
         var listener = this.listeners[key];
@@ -215,6 +222,7 @@ var BinarySocket = /** @class */ (function () {
         }
     };
     BinarySocket.prototype.definePacket = function (id, struct) {
+        this.structs.set(id, struct);
     };
     return BinarySocket;
 }());

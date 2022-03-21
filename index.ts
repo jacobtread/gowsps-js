@@ -204,6 +204,9 @@ interface PacketField {
     type: DataType;
 }
 
+
+type PacketStruct = Array<PacketField>
+
 class BinarySocket {
 
     private readonly url: string | URL;
@@ -211,6 +214,8 @@ class BinarySocket {
 
     private ws: WebSocket;
     private listeners: Listeners = {};
+
+    private structs: Map<number, PacketStruct> = new Map<number, PacketStruct>()
 
     constructor(url: string | URL, config?: Config) {
         this.url = url;
@@ -249,8 +254,14 @@ class BinarySocket {
         console.log(event.data)
         const dv = new WrappedDataView(event.data as ArrayBuffer)
         const packetId = dv.getNumber(DataType.VarInt)
-        const name = dv.getString()
-        console.log(packetId, name)
+        const struct = this.structs.get(packetId)
+        const out: any = {}
+        if (struct != undefined) {
+            for (let {name, type} of struct) {
+                out[name] = dv.getField(type)
+            }
+        }
+
     }
 
     private pushEvent(this: BinarySocket, key: EventName, event: any) {
@@ -260,8 +271,7 @@ class BinarySocket {
         }
     }
 
-    definePacket(id: number, struct: any) {
-
-
+    definePacket(id: number, struct: PacketStruct, ) {
+        this.structs.set(id, struct)
     }
 }

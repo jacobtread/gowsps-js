@@ -107,6 +107,11 @@ export class BinarySocket {
     }
 
     addListener<T extends PacketStruct>(definition: PacketDefinition<T>, handler: PacketListener<T>) {
-        this.packetListeners[definition.id].push(handler)
+        const list = this.packetListeners[definition.id]
+        if (list) {
+            list.push(handler)
+        } else {
+            this.packetListeners[definition.id] = [handler]
+        }
     }
 }

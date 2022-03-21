@@ -20,11 +20,10 @@ export enum DataType {
  * set with offset write functions with put functions instead.
  */
 export class WrappedDataView {
-    private offset: number;
-    private wrapped: DataView;
+    private offset: number = 0;
+    private readonly wrapped: DataView;
 
     constructor(out: ArrayBufferLike) {
-        this.offset = 0
         this.wrapped = new DataView(out)
     }
 
@@ -34,7 +33,7 @@ export class WrappedDataView {
         return original
     }
 
-    getVarInt(): number {
+    getVarInt(this: WrappedDataView): number {
         let value = 0, bitOffset = 0, byte = 0
         do {
             if (bitOffset == 35) return 0
@@ -45,20 +44,41 @@ export class WrappedDataView {
         return value
     }
 
-    getInt8 = (): number => this.wrapped.getInt8(this.offset++);
-    getUInt8 = (): number => this.wrapped.getUint8(this.offset++);
+    getInt8(): number {
+        return this.wrapped.getInt8(this.offset++);
+    }
 
-    getInt16 = (): number => this.wrapped.getInt16(this.m(2))
-    getUInt16 = (): number => this.wrapped.getUint16(this.m(2));
+    getUInt8(): number {
+        return this.wrapped.getUint8(this.offset++);
+    }
 
+    getInt16(): number {
+        return this.wrapped.getInt16(this.m(2))
+    }
 
-    getInt32 = (): number => this.wrapped.getInt32(this.m(4))
-    getUInt32 = (): number => this.wrapped.getUint32(this.m(4));
+    getUInt16(): number {
+        return this.wrapped.getUint16(this.m(2));
+    }
 
-    getFloat32 = (): number => this.wrapped.getFloat32(this.m(4))
-    getFloat64 = (): number => this.wrapped.getFloat64(this.m(8));
+    getInt32(): number {
+        return this.wrapped.getInt32(this.m(4))
+    }
 
-    getBoolean = (): boolean => this.getInt8() == 1
+    getUInt32(): number {
+        return this.wrapped.getUint32(this.m(4));
+    }
+
+    getFloat32(): number {
+        return this.wrapped.getFloat32(this.m(4))
+    }
+
+    getFloat64(): number {
+        return this.wrapped.getFloat64(this.m(8));
+    }
+
+    getBoolean(): boolean {
+        return this.getInt8() == 1
+    }
 
     getString(): string {
         // @ts-ignore
@@ -76,17 +96,37 @@ export class WrappedDataView {
         }
     }
 
-    putInt8 = (value: number) => this.wrapped.setInt8(this.offset++, value)
-    putUInt8 = (value: number) => this.wrapped.setUint8(this.offset++, value)
+    putInt8(value: number) {
+        this.wrapped.setInt8(this.offset++, value)
+    }
 
-    putInt16 = (value: number) => this.wrapped.setInt16(this.m(2), value)
-    putUInt16 = (value: number) => this.wrapped.setUint16(this.m(2), value)
+    putUInt8(value: number) {
+        this.wrapped.setUint8(this.offset++, value)
+    }
 
-    putInt32 = (value: number) => this.wrapped.setInt32(this.m(4), value)
-    putUInt32 = (value: number) => this.wrapped.setUint32(this.m(4), value)
+    putInt16(value: number) {
+        this.wrapped.setInt16(this.m(2), value)
+    }
 
-    putFloat32 = (value: number) => this.wrapped.setFloat32(this.m(4), value)
-    putFloat64 = (value: number) => this.wrapped.setFloat64(this.m(8), value)
+    putUInt16(value: number) {
+        this.wrapped.setUint16(this.m(2), value)
+    }
+
+    putInt32(value: number) {
+        this.wrapped.setInt32(this.m(4), value)
+    }
+
+    putUInt32(value: number) {
+        this.wrapped.setUint32(this.m(4), value)
+    }
+
+    putFloat32(value: number) {
+        this.wrapped.setFloat32(this.m(4), value)
+    }
+
+    putFloat64(value: number) {
+        this.wrapped.setFloat64(this.m(8), value)
+    }
 
     putVarInt(value: number) {
         while (value >= 0x80) {
@@ -103,7 +143,9 @@ export class WrappedDataView {
         }
     }
 
-    putBoolean = (value: boolean) => this.putInt8(value ? 1 : 0)
+    putBoolean(value: boolean) {
+        this.putInt8(value ? 1 : 0)
+    }
 }
 
 type DecoderFunction = () => any
@@ -127,13 +169,17 @@ const decodeTypeMap: DecoderFunctions = {
     [DataType.Int8]: WrappedDataView.prototype.getInt8,
     [DataType.Int16]: WrappedDataView.prototype.getInt16,
     [DataType.Int32]: WrappedDataView.prototype.getInt32,
+
     [DataType.UInt8]: WrappedDataView.prototype.getUInt8,
     [DataType.UInt16]: WrappedDataView.prototype.getUInt16,
     [DataType.UInt32]: WrappedDataView.prototype.getUInt32,
+
     [DataType.Float32]: WrappedDataView.prototype.getFloat32,
     [DataType.Float64]: WrappedDataView.prototype.getFloat64,
+
     [DataType.Boolean]: WrappedDataView.prototype.getBoolean,
     [DataType.VarInt]: WrappedDataView.prototype.getVarInt,
+
     [DataType.String]: WrappedDataView.prototype.getString,
     [DataType.ByteArray]: WrappedDataView.prototype.getByteArray,
 }
@@ -142,17 +188,20 @@ const encodeTypeMap: EncoderFunctions = {
     [DataType.Int8]: WrappedDataView.prototype.putInt8,
     [DataType.Int16]: WrappedDataView.prototype.putInt16,
     [DataType.Int32]: WrappedDataView.prototype.putInt32,
+
     [DataType.UInt8]: WrappedDataView.prototype.putUInt8,
     [DataType.UInt16]: WrappedDataView.prototype.putUInt16,
     [DataType.UInt32]: WrappedDataView.prototype.putUInt32,
+
     [DataType.Float32]: WrappedDataView.prototype.putFloat32,
     [DataType.Float64]: WrappedDataView.prototype.putFloat64,
+
     [DataType.Boolean]: WrappedDataView.prototype.putBoolean,
     [DataType.VarInt]: WrappedDataView.prototype.putVarInt,
+
     [DataType.String]: WrappedDataView.prototype.putString,
     [DataType.ByteArray]: WrappedDataView.prototype.putByteArray,
 }
-
 
 const dataTypeSize: DataSizeFunctions = {
     [DataType.Int8]: 1,
@@ -204,32 +253,37 @@ export type PacketConvertedStruct<Struct extends PacketStruct> = { [Key in keyof
 
 export type IdentifiedPacket<T> = T & Identified
 
+export type StructKey<T extends PacketStruct> = keyof T
+export type StructKeys<T extends PacketStruct> = StructKey<T>[]
+
+export type DefinitionField<T extends PacketStruct> = [StructKey<T>, DataType];
+
 export class PacketDefinition<T extends PacketStruct> {
 
     readonly id: number;
 
-    private readonly keys: string[];
-    private readonly types: DataType[];
+    private readonly fields: DefinitionField<T>[]
 
-    public constructor(id: number, struct: T, keys: (keyof T)[]) {
+    public constructor(id: number, struct: T, keys: StructKeys<T>) {
         this.id = id;
-        for (let key of keys) {
-            const type = struct[key]
+        this.fields = new Array(keys.length);
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const type = struct[key];
+            this.fields[i] = [key, type];
         }
     }
 
     decode(dataView: WrappedDataView): T {
         const out: any = {}
-        for (let i = 0; i < this.keys.length; i++) {
-            const key: string = this.keys[i], type: DataType = this.types[i];
+        for (let [key, type] of this.fields) {
             out[key] = decodeTypeMap[type].apply(dataView)
         }
         return out
     }
 
     encode(dataView: WrappedDataView, packet: T) {
-        for (let i = 0; i < this.keys.length; i++) {
-            const key: string = this.keys[i], type: DataType = this.types[i];
+        for (let [key, type] of this.fields) {
             const value: any = packet[key]
             encodeTypeMap[type].apply(dataView, [value])
         }
@@ -237,8 +291,7 @@ export class PacketDefinition<T extends PacketStruct> {
 
     computeSize(packet: T): number {
         let size = 0;
-        for (let i = 0; i < this.keys.length; i++) {
-            const key: string = this.keys[i], type: DataType = this.types[i];
+        for (let [key, type] of this.fields) {
             const dataSize: number | DataSizeFunction = dataTypeSize[type]
             if (typeof dataSize == 'number') {
                 size += dataSize

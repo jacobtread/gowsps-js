@@ -8,7 +8,7 @@ const TestPacket = new PacketDefinition(0x02, {
 }, ['name', 'user'])
 
 export function Test() {
-    const socket = new BinarySocket('ws://localhost:8080')
+    const socket = new BinarySocket('ws://localhost:8080/ws')
     socket.definePacket(TestPacket)
 
     socket.addListener(TestPacket, ({user, name}) => {

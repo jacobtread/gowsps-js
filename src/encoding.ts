@@ -1,5 +1,3 @@
-import { getFieldOrder, getType, Packet, PacketField } from "./packets";
-
 export enum DataType {
     Int8,
     Int16,
@@ -155,6 +153,7 @@ const encodeTypeMap: EncoderFunctions = {
     [DataType.ByteArray]: WrappedDataView.prototype.putByteArray,
 }
 
+
 const dataTypeSize: DataSizeFunctions = {
     [DataType.Int8]: 1,
     [DataType.Int16]: 2,
@@ -185,52 +184,75 @@ const dataTypeSize: DataSizeFunctions = {
     },
 }
 
-export class PacketActor<T extends Packet> {
-    private packet: T;
-    private readonly fields: PacketField<T>[];
-    private readonly fieldTypes: DataType[] = [];
 
-    constructor(packet: T) {
-        this.packet = packet
-        this.fields = getFieldOrder(packet)
-        for (let i = 0; i < this.fields.length; i++) {
-            const name = this.fields[i]
-            const type = getType(packet, name as string | symbol)
-            this.fieldTypes.push(type)
+type NumberType = DataType.VarInt | DataType.UInt8 | DataType.UInt16 | DataType.UInt32
+    | DataType.Int8 | DataType.Int16 | DataType.Int32 | DataType.Float32 | DataType.Float64;
+
+type ConvertedType<T> = T extends NumberType ? number
+    : T extends DataType.String ? string
+        : T extends DataType.Boolean ? boolean
+            : T extends DataType.ByteArray ? Uint8Array
+                : unknown;
+
+
+interface Identified {
+    readonly id: number;
+}
+
+export type PacketStruct = Record<string, DataType>;
+export type PacketConvertedStruct<Struct extends PacketStruct> = { [Key in keyof Struct]: ConvertedType<Struct[Key]> };
+
+export type IdentifiedPacket<T> = T & Identified
+
+export class PacketDefinition<T extends PacketStruct> {
+
+    readonly id: number;
+
+    private readonly keys: string[];
+    private readonly types: DataType[];
+
+    public constructor(id: number, struct: T, keys: (keyof T)[]) {
+        this.id = id;
+        for (let key of keys) {
+            const type = struct[key]
         }
     }
 
     decode(dataView: WrappedDataView): T {
-        const out = this.packet.constructor.apply(null)
-        for (let i = 0; i < this.fields.length; i++) {
-            const name: PacketField<T> = this.fields[i]
-            const type: DataType = this.fieldTypes[i]
-            out[name] = decodeTypeMap[type].apply(dataView)
+        const out: any = {}
+        for (let i = 0; i < this.keys.length; i++) {
+            const key: string = this.keys[i], type: DataType = this.types[i];
+            out[key] = decodeTypeMap[type].apply(dataView)
         }
         return out
     }
 
     encode(dataView: WrappedDataView, packet: T) {
-        for (let i = 0; i < this.fields.length; i++) {
-            const name: PacketField<T> = this.fields[i]
-            const type: DataType = this.fieldTypes[i]
-            const value = packet[name]
+        for (let i = 0; i < this.keys.length; i++) {
+            const key: string = this.keys[i], type: DataType = this.types[i];
+            const value: any = packet[key]
             encodeTypeMap[type].apply(dataView, [value])
         }
     }
 
     computeSize(packet: T): number {
         let size = 0;
-        for (let i = 0; i < this.fields.length; i++) {
-            const name: PacketField<T> = this.fields[i]
-            const type: DataType = this.fieldTypes[i]
-            const dataSize = dataTypeSize[type]
+        for (let i = 0; i < this.keys.length; i++) {
+            const key: string = this.keys[i], type: DataType = this.types[i];
+            const dataSize: number | DataSizeFunction = dataTypeSize[type]
             if (typeof dataSize == 'number') {
                 size += dataSize
             } else {
-                size += dataSize(packet[name])
+                size += dataSize(packet[key])
             }
         }
         return size
+    }
+
+    create<K extends PacketConvertedStruct<T>>(data: K): IdentifiedPacket<K> {
+        return {
+            id: this.id,
+            ...data
+        }
     }
 }

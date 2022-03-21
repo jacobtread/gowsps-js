@@ -1,5 +1,4 @@
-import { PacketActor, WrappedDataView } from "./encoding";
-import { Packet } from "./packets";
+import { IdentifiedPacket, PacketConvertedStruct, PacketDefinition, PacketStruct, WrappedDataView } from "./encoding";
 
 export interface Config {
     autoReconnect?: boolean;
@@ -11,17 +10,17 @@ interface AssertedConfig {
     reconnectTimeout: number;
 }
 
-export type EventFunction = (event: EventListener) => any
+type EventName = keyof EventListeners
+type EventFunction = (event: EventListener) => any
 
-export interface EventListeners {
+interface EventListeners {
     open?: EventFunction,
     closed?: EventFunction
 }
 
-export type PacketListener<T extends Packet> = (packet: T) => any
+type PacketListener<T extends PacketStruct> = (packet: PacketConvertedStruct<T>) => any
 type PacketListeners = { [key: number]: PacketListener<any>[] }
 
-type EventName = keyof EventListeners
 
 export class BinarySocket {
     private readonly url: string | URL;
@@ -31,7 +30,7 @@ export class BinarySocket {
     private eventListeners: EventListeners = {};
     private packetListeners: PacketListeners = {};
 
-    private actors = new Map<number, PacketActor<any>>()
+    private actors = new Map<number, PacketDefinition<any>>()
 
     constructor(url: string | URL, config?: Config) {
         this.url = url;
@@ -82,7 +81,7 @@ export class BinarySocket {
         }
     }
 
-    send(packet: Packet) {
+    send(packet: IdentifiedPacket<any>) {
         const actor = this.actors.get(packet.id)
         if (actor) {
             const out = new ArrayBuffer(actor.computeSize(packet))
@@ -103,12 +102,11 @@ export class BinarySocket {
         this.eventListeners[name] = listener
     }
 
-    definePacket(packet: Packet) {
-        const actor = new PacketActor(packet)
-        this.actors.set(packet.id, actor)
+    definePacket(packet: PacketDefinition<any>) {
+        this.actors.set(packet.id, packet)
     }
 
-    addListener<T extends Packet>(id: number, handler: PacketListener<T>) {
-        this.packetListeners[id].push(handler)
+    addListener<T extends PacketStruct>(definition: PacketDefinition<T>, handler: PacketListener<T>) {
+        this.packetListeners[definition.id].push(handler)
     }
 }

@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
-    "target": "es2018",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "ES5",
     "useDefineForClassFields": true,
-    "module": "esnext",
+    "module": "amd",
     "moduleResolution": "node",
     "strict": true,
+    "strictPropertyInitialization": false,
     "jsx": "preserve",
     "sourceMap": true,
     "resolveJsonModule": true,
@@ -12,9 +15,7 @@
     "lib": [
       "esnext",
       "dom"
-    ]
-  },
-  "include": [
-    "index.ts",
-  ]
+    ],
+    "rootDir": "./src/",
+  }
 }

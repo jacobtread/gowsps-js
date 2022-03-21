@@ -1,3 +1,5 @@
+import "reflect-metadata";
+
 type OpenFunction = (event: Event) => any
 type CloseFunction = (event: Event) => any
 
@@ -271,7 +273,32 @@ class BinarySocket {
         }
     }
 
-    definePacket(id: number, struct: PacketStruct, ) {
+    definePacket(id: number, struct: PacketStruct,) {
         this.structs.set(id, struct)
     }
+
+    
 }
+
+
+
+abstract class Packet {
+    id!: number // The identifier for this packet
+}
+
+function f(index: number, type: DataType) {
+    return Reflect.metadata('data-type', type)
+}
+
+class ExamplePacket extends Packet {
+    id = 0x09
+
+    @f(0, DataType.String)
+    name!: string;
+    @f(1, DataType.UInt8)
+    test!: number;
+}
+
+
+const p = new ExamplePacket()
+console.log(p.id)

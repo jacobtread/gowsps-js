@@ -6,19 +6,14 @@ interface Listeners {
     closed?: CloseFunction
 }
 
-type ConfigKey = keyof Config
-
-
 interface Config {
     autoReconnect?: boolean;
     reconnectTimeout?: number;
-    keySize?: KeySize;
 }
 
 interface AssertedConfig {
     autoReconnect: boolean;
     reconnectTimeout: number;
-    keySize: KeySize;
 }
 
 /**
@@ -38,7 +33,19 @@ class WrappedDataView {
     getString(): string {
         const length = this.getVarInt()
         const arr = new Uint8Array(this.wrapped.buffer, this.offset, length)
-        return String.fromCharCode(...arr);
+        // @ts-ignore
+        return String.fromCharCode.apply(null, arr);
+    }
+
+    getBoolean(): boolean {
+        const value = this.getNumber(NumberType.UInt8)
+        this.offset++
+        return value == 1
+    }
+
+    putBoolean(value: boolean): void {
+        this.wrapped.setUint8(this.offset, value ? 1 : 0)
+        this.offset++
     }
 
     putString(value: string): void {
@@ -136,36 +143,18 @@ class WrappedDataView {
     }
 
     getVarInt(): number {
-        let x = 0
-        let s = 0
-        let b = 0
-        let offset = 0
-        while (offset != 10) {
-            b = this.wrapped.getInt8(this.offset)
-            if (b < 0x80) {
-                if (offset == 9 && b > 1) {
-                    return 0
-                }
-                return x | (b << s)
-            }
-            x |= b & 0x7F << s
-            s += 7
+        let value = 0
+        let bitOffset = 0
+        let byte
+        do {
+            if (bitOffset == 35) return 0
+            byte = this.wrapped.getInt8(this.offset)
             this.offset++
-            offset++
-        }
-        return 0
+            value |= ((byte & 127) << bitOffset)
+            bitOffset += 7
+        } while ((value & 128) != 0)
+        return value
     }
-}
-
-/**
- * Determines the size of the packet identifier.
- * (Use the key size with the range that matches your id count)
- * The range of this id key sizes are listed next to the values
- */
-enum KeySize {
-    UInt8 = 1, // 0 - 255
-    UInt16 = 2, // 0 - 65535
-    UInt32 = 4// 0 - 4294967295
 }
 
 enum NumberType {
@@ -195,10 +184,10 @@ class BinarySocket {
         this.config = {
             autoReconnect: config.autoReconnect ?? false,
             reconnectTimeout: config.reconnectTimeout ?? 1000,
-            keySize: config.keySize ?? KeySize.UInt8
         }
         this.ws = this.createConnection()
     }
+
 
     private createConnection(): WebSocket {
         const ws = new WebSocket(this.url)
@@ -218,24 +207,16 @@ class BinarySocket {
                 }, this.config.reconnectTimeout)
             }
         }
+        ws.onmessage = (event: MessageEvent) => this.onMessage(event)
         return ws
     }
 
     private onMessage(event: MessageEvent) {
+        console.log(event.data)
         const dv = new WrappedDataView(event.data as ArrayBuffer)
-        const packetId = this.readPacketId(dv)
-    }
-
-    private readPacketId(dv: WrappedDataView): number {
-        const keySize: KeySize = this.config.keySize
-        switch (keySize) {
-            case KeySize.UInt8:
-                return dv.getUint8();
-            case KeySize.UInt16:
-                return dv.getUint16();
-            case KeySize.UInt32:
-                return dv.getUint32()
-        }
+        const packetId = dv.getVarInt()
+        const name = dv.getString()
+        console.log(packetId, name)
     }
 
     private pushEvent(this: BinarySocket, key: EventName, event: any) {

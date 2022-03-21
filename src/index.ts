@@ -1,3 +1,9 @@
-import * as packets from "./packets"
+import { DefinePacket, Field, Packet } from "./packets"
+import { DataType } from "./encoding";
+import { BinarySocket, Config, EventFunction, EventListeners, PacketListener } from "./socket";
 
-export default packets
+export {
+    DataType, DefinePacket, Field,
+    Packet, BinarySocket, PacketListener,
+    EventFunction, EventListeners, Config
+}

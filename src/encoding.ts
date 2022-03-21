@@ -1,4 +1,4 @@
-import { getFieldOrder, getType, DefinePacket, PacketField, Packet } from "./packets";
+import { getFieldOrder, getType, Packet, PacketField } from "./packets";
 
 export enum DataType {
     Int8,
@@ -91,12 +91,11 @@ export class WrappedDataView {
     putFloat64 = (value: number) => this.wrapped.setFloat64(this.m(8), value)
 
     putVarInt(value: number) {
-        let x = 0;
-        while (x >= 0x80) {
-            this.putInt8(x | 0x80)
-            x >>= 7
+        while (value >= 0x80) {
+            this.putInt8(value | 0x80)
+            value >>= 7
         }
-        this.putInt8(x | 0x80)
+        this.putInt8(value | 0x80)
     }
 
     putString(value: string) {
@@ -111,14 +110,20 @@ export class WrappedDataView {
 
 type DecoderFunction = () => any
 type EncoderFunction = (value: any) => any
+type DataSizeFunction = (value: any) => number
 
 export type DecoderFunctions = {
-    [key: string]: DecoderFunction;
+    [key in DataType]: DecoderFunction;
 };
 
 export type EncoderFunctions = {
-    [key: string]: EncoderFunction;
+    [key in DataType]: EncoderFunction;
 };
+
+export type DataSizeFunctions = {
+    [key in DataType]: DataSizeFunction | number
+}
+
 
 const decodeTypeMap: DecoderFunctions = {
     [DataType.Int8]: WrappedDataView.prototype.getInt8,
@@ -148,6 +153,36 @@ const encodeTypeMap: EncoderFunctions = {
     [DataType.VarInt]: WrappedDataView.prototype.putVarInt,
     [DataType.String]: WrappedDataView.prototype.putString,
     [DataType.ByteArray]: WrappedDataView.prototype.putByteArray,
+}
+
+const dataTypeSize: DataSizeFunctions = {
+    [DataType.Int8]: 1,
+    [DataType.Int16]: 2,
+    [DataType.Int32]: 4,
+    [DataType.UInt8]: 1,
+    [DataType.UInt16]: 2,
+    [DataType.UInt32]: 4,
+    [DataType.Float32]: 4,
+    [DataType.Float64]: 8,
+    [DataType.Boolean]: 1,
+    [DataType.VarInt]: (value: number): number => {
+        let count = 0
+        while (value >= 0x80) {
+            count++
+            value >>= 7
+        }
+        return ++count
+    },
+    [DataType.String]: (value: string): number => {
+        const varInt = dataTypeSize[DataType.VarInt] as DataSizeFunction
+        let size = varInt(value.length)
+        return size + value.length
+    },
+    [DataType.ByteArray]: (value: Uint8Array): number => {
+        const varInt = dataTypeSize[DataType.VarInt] as DataSizeFunction
+        let size = varInt(value.length)
+        return size + value.length
+    },
 }
 
 export class PacketActor<T extends Packet> {
@@ -182,5 +217,20 @@ export class PacketActor<T extends Packet> {
             const value = packet[name]
             encodeTypeMap[type].apply(dataView, [value])
         }
+    }
+
+    computeSize(packet: T): number {
+        let size = 0;
+        for (let i = 0; i < this.fields.length; i++) {
+            const name: PacketField<T> = this.fields[i]
+            const type: DataType = this.fieldTypes[i]
+            const dataSize = dataTypeSize[type]
+            if (typeof dataSize == 'number') {
+                size += dataSize
+            } else {
+                size += dataSize(packet[name])
+            }
+        }
+        return size
     }
 }

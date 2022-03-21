@@ -1,5 +1,5 @@
 import { PacketActor, WrappedDataView } from "./encoding";
-import { DefinePacket, Packet } from "./packets";
+import { Packet } from "./packets";
 
 export interface Config {
     autoReconnect?: boolean;
@@ -34,6 +34,7 @@ export class BinarySocket {
     private actors = new Map<number, PacketActor<any>>()
 
     constructor(url: string | URL, config?: Config) {
+        this.url = url;
         if (!config) config = {}
         this.config = {
             autoReconnect: config.autoReconnect ?? false,
@@ -81,6 +82,16 @@ export class BinarySocket {
         }
     }
 
+    send(packet: Packet) {
+        const actor = this.actors.get(packet.id)
+        if (actor) {
+            const out = new ArrayBuffer(actor.computeSize(packet))
+            const dv = new WrappedDataView(out)
+            actor.encode(dv, packet)
+            this.ws.send(out)
+        }
+    }
+
     private pushEvent(this: BinarySocket, key: EventName, event: any) {
         const listener = this.eventListeners[key]
         if (listener !== undefined) {
@@ -88,9 +99,13 @@ export class BinarySocket {
         }
     }
 
-    definePacket(id: number, packet: any) {
+    setEventListener(name: EventName, listener: EventFunction) {
+        this.eventListeners[name] = listener
+    }
+
+    definePacket(packet: Packet) {
         const actor = new PacketActor(packet)
-        this.actors.set(id, actor)
+        this.actors.set(packet.id, actor)
     }
 
     addListener<T extends Packet>(id: number, handler: PacketListener<T>) {

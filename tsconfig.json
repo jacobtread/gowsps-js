@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES5",
-    "module": "ESNext",
+    "module": "ES2015",
     "moduleResolution": "node",
     "useDefineForClassFields": true,
     "downlevelIteration": true,

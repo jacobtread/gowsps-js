@@ -1,12 +1,12 @@
-import { IdentifiedPacket, PacketDefinition, PacketStruct, PacketStructTyped } from "./packets";
-import { DataViewTracker, VarInt } from "./data";
+import { PacketDefinition } from "./packets";
+import { DataViewTracker, IdentifiedStruct, StructLayout, StructTyped, VarInt, VarIntSize } from "./data";
 
 export interface Config {
     reconnectTimeout?: number;
 }
 
 type EventFunction = (event: Event) => any
-type PacketListener<T extends PacketStruct, K extends PacketStructTyped<T>> = (packet: K) => any;
+type PacketListener<T extends StructLayout, K extends StructTyped<T>> = (packet: K) => any;
 type PacketListeners = { [key: number]: PacketListener<any, any>[] }
 
 /**
@@ -93,11 +93,13 @@ export class BinarySocket {
         return ws
     }
 
-    send(packet: IdentifiedPacket<any>) {
-        const actor = this.definitions[packet.id]
-        if (actor) {
-            const out = actor.encode(this.writeTracker, packet)
-            this.ws.send(out)
+    send(packet: IdentifiedStruct<any>) {
+        const definition = this.definitions[packet.id]
+        if (definition) {
+            const buffer = new ArrayBuffer(VarIntSize(definition.id) + definition.computeSize(packet));
+            const view = new DataView(buffer);
+            definition.encode(view, this.writeTracker, packet)
+            this.ws.send(buffer)
         }
         this.writeTracker.reset()
     }
@@ -106,7 +108,7 @@ export class BinarySocket {
         this.definitions[packet.id] = packet
     }
 
-    addListener<T extends PacketStruct>(definition: PacketDefinition<T>, handler: PacketListener<T, PacketStructTyped<T>>) {
+    addListener<T extends StructLayout>(definition: PacketDefinition<T>, handler: PacketListener<T, StructTyped<T>>) {
         const list = this.packetListeners[definition.id]
         if (list) {
             list.push(handler)

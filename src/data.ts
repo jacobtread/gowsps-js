@@ -1,7 +1,14 @@
+import { StructDefinition, StructKeys } from "./packets";
+
 // A function for determining the size of the N object
 export type DataSizeFunction<N> = (value: N) => number;
 // Either the size as a number or a function which takes the value and returns its size
 export type DataSize<N> = number | DataSizeFunction<N>;
+
+// Identity represents an object with an ID value
+type Identity = { readonly id: number }
+// Represents an object that has an ID property
+type Identified<T> = T & Identity
 
 /**
  * A simple class for tracking the offset progress. Used to keep track
@@ -186,161 +193,6 @@ export const ByteArray: DataType<Uint8Array> = {
     }
 }
 
-export const UInt16Array: DataType<Uint16Array> = {
-    size(value: Uint16Array): number {
-        return VarIntSize(value.length) + value.length * 2
-    },
-    encode(d: DataView, t: DataViewTracker, v: Uint16Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            UInt16.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Uint16Array {
-        const size = VarInt.decode(d, t)
-        return new Uint16Array(d.buffer, t.many(size * 2), size)
-    }
-}
-
-export const UInt32Array: DataType<Uint32Array> = {
-    size(value: Uint32Array): number {
-        return VarIntSize(value.length) + value.length * 4
-    },
-    encode(d: DataView, t: DataViewTracker, v: Uint32Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            UInt32.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Uint32Array {
-        const size = VarInt.decode(d, t)
-        return new Uint32Array(d.buffer, t.many(size * 4), size)
-    }
-}
-
-export const Int8ArrayType: DataType<Int8Array> = {
-    size(value: Int8Array): number {
-        return VarIntSize(value.length) + value.length
-    },
-    encode(d: DataView, t: DataViewTracker, v: Int8Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            Int8.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Int8Array {
-        const size = VarInt.decode(d, t)
-        return new Int8Array(d.buffer, t.many(size), size)
-    }
-}
-
-export const Int16ArrayType: DataType<Int16Array> = {
-    size(value: Int16Array): number {
-        return VarIntSize(value.length) + value.length * 2
-    },
-    encode(d: DataView, t: DataViewTracker, v: Int16Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            Int16.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Int16Array {
-        const size = VarInt.decode(d, t)
-        return new Int16Array(d.buffer, t.many(size * 2), size)
-    }
-}
-
-export const Int32ArrayType: DataType<Int32Array> = {
-    size(value: Int32Array): number {
-        return VarIntSize(value.length) + value.length * 4
-    },
-    encode(d: DataView, t: DataViewTracker, v: Int32Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            UInt32.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Int32Array {
-        const size = VarInt.decode(d, t)
-        return new Int32Array(d.buffer, t.many(size * 4), size)
-    }
-}
-
-export const Float32ArrayType: DataType<Float32Array> = {
-    size(value: Float32Array): number {
-        return VarIntSize(value.length) + value.length * 4
-    },
-    encode(d: DataView, t: DataViewTracker, v: Float32Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            Float32.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Float32Array {
-        const size = VarInt.decode(d, t)
-        return new Float32Array(d.buffer, t.many(size * 4), size)
-    }
-}
-export const Float64ArrayType: DataType<Float64Array> = {
-    size(value: Float64Array): number {
-        return VarIntSize(value.length) + value.length * 8
-    },
-    encode(d: DataView, t: DataViewTracker, v: Float64Array) {
-        VarInt.encode(d, t, v.length)
-        for (let elm of v) {
-            Float32.encode(d, t, elm)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): Float64Array {
-        const size = VarInt.decode(d, t)
-        return new Float64Array(d.buffer, t.many(size * 8), size)
-    }
-}
-
-export const StrArray: DataType<string[]> = {
-    size(value: string[]): number {
-        let size = 0;
-        for (let string of value) {
-            size += VarIntSize(string.length) + string.length
-        }
-        return size + VarIntSize(value.length)
-    },
-    encode(d: DataView, t: DataViewTracker, v: string[]) {
-        VarInt.encode(d, t, v.length)
-        for (let string of v) {
-            Str.encode(d, t, string)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): string[] {
-        const size = VarInt.decode(d, t)
-        let values: string[] = new Array(size)
-        for (let i = 0; i < size; i++) {
-            values[i] = Str.decode(d, t)
-        }
-        return values
-    }
-}
-
-export const BoolArray: DataType<boolean[]> = {
-    size(value: boolean[]): number {
-        return value.length + VarIntSize(value.length)
-    },
-    encode(d: DataView, t: DataViewTracker, v: boolean[]) {
-        VarInt.encode(d, t, v.length)
-        for (let value of v) {
-            UInt8.encode(d, t, value ? 1 : 0)
-        }
-    },
-    decode(d: DataView, t: DataViewTracker): boolean[] {
-        const size = VarInt.decode(d, t)
-        let values: boolean[] = new Array(size)
-        for (let i = 0; i < size; i++) {
-            values[i] = UInt8.decode(d, t) == 1
-        }
-        return values
-    }
-}
-
 // String
 export const Str: DataType<string> = {
     size(value: string): number {
@@ -356,5 +208,87 @@ export const Str: DataType<string> = {
         const arr = ByteArray.decode(d, t)
         // @ts-ignore
         return String.fromCharCode.apply(null, arr);
+    }
+}
+
+
+export type StructLayout = Record<string, DataType<any>>;
+
+export type StructTyped<Origin extends StructLayout> = {
+    [Key in keyof Origin]: Origin[Key] extends DataType<infer V> ? V : unknown
+}
+
+export type IdentifiedStruct<T extends StructLayout> = Identified<StructTyped<T>>
+
+export function Struct<T extends StructLayout>(struct: T, keys: StructKeys<T>): DataType<StructTyped<T>> {
+    const definition = new StructDefinition<T>(struct, keys)
+    return {
+        size(value: StructTyped<T>): number {
+            return definition.computeSize(value)
+        },
+        decode(d: DataView, t: DataViewTracker): StructTyped<T> {
+            return definition.decode(d, t)
+        },
+        encode(d: DataView, t: DataViewTracker, v: StructTyped<T>) {
+            definition.encode(d, t, v)
+        }
+    }
+}
+
+export function StructArray<T extends StructLayout>(struct: T, keys: StructKeys<T>): DataType<StructTyped<T>[]> {
+    const definition = new StructDefinition<T>(struct, keys)
+    return {
+        decode(d: DataView, t: DataViewTracker): StructTyped<T>[] {
+            const count = VarInt.decode(d, t)
+            const out: StructTyped<T>[] = new Array(count)
+            for (let i = 0; i < count; i++) {
+                out[i] = definition.decode(d, t)
+            }
+            return out;
+        },
+        encode(d: DataView, t: DataViewTracker, v: StructTyped<T>[]) {
+            VarInt.encode(d, t, v.length)
+            for (let elm of v) {
+                definition.encode(d, t, elm)
+            }
+        },
+        size(value: StructTyped<T>[]): number {
+            let size = 0;
+            for (let elm of value) {
+                size += definition.computeSize(elm)
+            }
+            return VarIntSize(value.length) + size
+        }
+    }
+}
+
+export function ArrayType<T>(type: DataType<T>): DataType<T[]> {
+    return {
+        decode(d: DataView, t: DataViewTracker): T[] {
+            const count = VarInt.decode(d, t)
+            const out: T[] = new Array(count)
+            for (let i = 0; i < count; i++) {
+                out[i] = type.decode(d, t)
+            }
+            return out
+        },
+        encode(d: DataView, t: DataViewTracker, v: T[]): void {
+            VarInt.encode(d, t, v.length)
+            for (let value of v) {
+                type.encode(d, t, value)
+            }
+        },
+        size(value: T[]) {
+            const size = type.size
+            if (typeof size === 'number') {
+                return (size * value.length) + VarIntSize(value.length)
+            } else {
+                let s = 0;
+                for (let elm of value) {
+                    s += size(elm)
+                }
+                return s + VarIntSize(value.length)
+            }
+        }
     }
 }

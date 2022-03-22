@@ -1,18 +1,18 @@
 {
-  "name": "gowsp-js",
+  "name": "gowsps-js",
   "private": false,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Jacobtread",
   "description": "A javascript client for GoWSPS",
   "repository": "https://github.com/jacobtread/gowsps-js",
   "main": "dist/index.js",
   "scripts": {
-    "build": "webpack",
-    "watch": "webpack -w",
+    "build": "tsc",
+    "watch": "tsc -w",
     "prepublishOnly": "yarn build"
   },
   "files": [
-    "dist/index.js"
+    "src/**.ts"
   ],
   "dependencies": {},
   "devDependencies": {

@@ -69,12 +69,14 @@ VarInts. The second argument is object which maps the names of each field to the
 used in the third argument which defines the order in which the fields should be encoded / decoded
 
 ```typescript
-import { DataType, PacketDefinition } from "gowsps-js";
+// gowsps exports custom data types you must use these
+// data types when defining your packet
+import { UInt8, Str, PacketDefinition } from "gowsps-js";
 
 // Create a new packet definition
 const TestPacket = new PacketDefinition(0x02 /* this is the id of the packet */, {
-    name: DataType.String, // This is a string field
-    user: DataType.UInt8 // This is a uint8 field
+    name: Str, // This is a string field
+    user: UInt8 // This is a uint8 field
 }, ['name', 'user'] /* This is the order of the fields */)
 
 ```
@@ -130,6 +132,6 @@ javascript contains the range of values on the number types
 | Float32   | number (-3.4e+38 to 3.4e+38)       | float32 |
 | Float64   | number (-1.7e+308 to +1.7e+308)    | float64 |
 | VarInt    | number (0 to 18446744073709551615) | uint64  |
-| Boolean   | boolean                            | bool    |
-| String    | string                             | string  |
+| Bool      | boolean                            | bool    |
+| Str       | string                             | string  |
 | ByteArray | Uint8Array                         | []byte  |

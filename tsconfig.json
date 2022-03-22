@@ -1,19 +1,21 @@
 {
   "compilerOptions": {
     "target": "ES5",
+    "module": "ESNext",
+    "moduleResolution": "node",
     "useDefineForClassFields": true,
     "downlevelIteration": true,
     "strict": true,
     "strictPropertyInitialization": false,
     "sourceMap": true,
-    "resolveJsonModule": true,
     "esModuleInterop": true,
     "lib": [
       "esnext",
       "dom"
-    ]
+    ],
+    "outDir": "dist"
   },
   "include": [
-    "index.ts"
+    "src/**.ts"
   ]
 }

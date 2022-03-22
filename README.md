@@ -81,6 +81,7 @@ const TestPacket = new PacketDefinition(0x02 /* this is the id of the packet */,
 ```
 
 > See Available Data Types section for the different available data types
+> See Special Data Types for custom data structures
 
 After defining a packet you then need to add this packet definition to your `BinarySocket` instance. The following code
 showcases how to do so.
@@ -132,14 +133,71 @@ javascript contains the range of values on the number types
 | Float64          | number (-1.7e+308 to +1.7e+308)    | float64   |
 | VarInt           | number (0 to 18446744073709551615) | uint64    |
 | Bool             | boolean                            | bool      |
-| BoolArray        | boolean[]                          | []bool    |
 | Str              | string                             | string    |
-| StrArray         | string[]                           | []string  |
 | ByteArray        | Uint8Array                         | []byte    |
-| UInt16Array      | Uint16Array                        | []uint16  |
-| UInt32Array      | Uint32Array                        | []uint32  |
-| Int8ArrayType    | Int8Array                          | []int8    |
-| Int16ArrayType   | Int16Array                         | []int16   |
-| Int32ArrayType   | Int32Array                         | []int32   |
-| Float32ArrayType | Float32Array                       | []float32 |
-| Float64ArrayType | Float64Array                       | []float64 |
+
+## Special Data Types
+
+For data that doesn't conform to the average number types, and you want something like a custom struct
+or an array of structs you can define them using the following
+
+#### Simple struct
+
+```typescript
+import { Str, Struct, UInt8 } from "gowsps-js";
+
+const MyStruct = Struct({
+    name: Str,
+    value: UInt8
+}, ['name', 'value'])
+```
+
+#### Array of structs
+
+You can create arrays of a new struct type using the `StructArray` function.
+The following code will be equivalent to MyStruct[]
+
+```typescript
+import { Str, StructArray, UInt8 } from "gowsps-js";
+
+const MyStruct = StructArray({
+    name: Str,
+    value: UInt8
+}, ['name', 'value'])
+```
+
+Or you can create an array of an existing type with the `ArrayType` function.
+In the following code the field `values` will be equivalent to string[]. This
+will work with any data type including user created structs
+
+```typescript
+const TestPacket = new PacketDefinition(0x02, {
+    name: Str,
+    user: UInt8,
+    values: ArrayType(Str)
+}, ['name', 'user', 'values'])
+```
+
+### Custom encodings
+
+If you want to create a custom data type with a custom encoding you can implement
+the `DataType` interface like so. The size function is used to calculate the size
+in bytes that a piece of data will take up. 
+
+(e.g. uint8 takes up 1 byte and uint32 takes up 4)
+
+```typescript
+
+export const ExampleType: DataType<ExampleType> = {
+    size(value: ExampleType): number {
+        return 0 // TODO: Return the size of this data structure
+    },
+    encode(d: DataView, t: DataViewTracker, v: ExampleType) {
+        // Write the value of `v` to the data view `d`
+    },
+    decode(d: DataView, t: DataViewTracker): ExampleType {
+        // Read the value from `d`
+        return // TODO: Return the value
+    }
+}
+```

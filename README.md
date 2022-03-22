@@ -51,16 +51,16 @@ const socket = new BinarySocket(SOCKET_URL, {
 ```
 
 After creating a socket you must wait for the socket to become open before you can send any packets
-the `setEventListener` function with "open" as the first argument and a function as the second argument
+the `setOpenListener` function with a function as the first argument
 
 ```typescript
 // ...
-socket.setEventListener('open', function () {
+socket.setOpenListener( function () {
     // TODO: Send some packets
 })
 ```
 
-There is also a listener for when the connection is closed
+There is also a listener for when the connection is closed named `setCloseListener`
 
 ## Defining A Packet
 

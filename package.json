@@ -1,11 +1,12 @@
 {
   "name": "gowsps-js",
   "private": false,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Jacobtread",
   "description": "A javascript client for GoWSPS",
   "repository": "https://github.com/jacobtread/gowsps-js",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

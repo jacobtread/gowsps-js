@@ -1,7 +1,7 @@
 {
   "name": "gowsps-js",
   "private": false,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": "Jacobtread",
   "description": "A javascript client for GoWSPS",
   "repository": "https://github.com/jacobtread/gowsps-js",

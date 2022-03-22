@@ -188,7 +188,7 @@ export const ByteArray: DataType<Uint8Array> = {
 
 export const UInt16Array: DataType<Uint16Array> = {
     size(value: Uint16Array): number {
-        return VarIntSize(value.length) + value.length
+        return VarIntSize(value.length) + value.length * 2
     },
     encode(d: DataView, t: DataViewTracker, v: Uint16Array) {
         VarInt.encode(d, t, v.length)
@@ -204,7 +204,7 @@ export const UInt16Array: DataType<Uint16Array> = {
 
 export const UInt32Array: DataType<Uint32Array> = {
     size(value: Uint32Array): number {
-        return VarIntSize(value.length) + value.length
+        return VarIntSize(value.length) + value.length * 4
     },
     encode(d: DataView, t: DataViewTracker, v: Uint32Array) {
         VarInt.encode(d, t, v.length)
@@ -236,7 +236,7 @@ export const Int8ArrayType: DataType<Int8Array> = {
 
 export const Int16ArrayType: DataType<Int16Array> = {
     size(value: Int16Array): number {
-        return VarIntSize(value.length) + value.length
+        return VarIntSize(value.length) + value.length * 2
     },
     encode(d: DataView, t: DataViewTracker, v: Int16Array) {
         VarInt.encode(d, t, v.length)
@@ -252,7 +252,7 @@ export const Int16ArrayType: DataType<Int16Array> = {
 
 export const Int32ArrayType: DataType<Int32Array> = {
     size(value: Int32Array): number {
-        return VarIntSize(value.length) + value.length
+        return VarIntSize(value.length) + value.length * 4
     },
     encode(d: DataView, t: DataViewTracker, v: Int32Array) {
         VarInt.encode(d, t, v.length)
@@ -263,6 +263,37 @@ export const Int32ArrayType: DataType<Int32Array> = {
     decode(d: DataView, t: DataViewTracker): Int32Array {
         const size = VarInt.decode(d, t)
         return new Int32Array(d.buffer, t.many(size * 4), size)
+    }
+}
+
+export const Float32ArrayType: DataType<Float32Array> = {
+    size(value: Float32Array): number {
+        return VarIntSize(value.length) + value.length * 4
+    },
+    encode(d: DataView, t: DataViewTracker, v: Float32Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            Float32.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Float32Array {
+        const size = VarInt.decode(d, t)
+        return new Float32Array(d.buffer, t.many(size * 4), size)
+    }
+}
+export const Float64ArrayType: DataType<Float64Array> = {
+    size(value: Float64Array): number {
+        return VarIntSize(value.length) + value.length * 8
+    },
+    encode(d: DataView, t: DataViewTracker, v: Float64Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            Float32.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Float64Array {
+        const size = VarInt.decode(d, t)
+        return new Float64Array(d.buffer, t.many(size * 8), size)
     }
 }
 

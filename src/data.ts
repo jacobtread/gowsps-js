@@ -186,6 +186,129 @@ export const ByteArray: DataType<Uint8Array> = {
     }
 }
 
+export const UInt16Array: DataType<Uint16Array> = {
+    size(value: Uint16Array): number {
+        return VarIntSize(value.length) + value.length
+    },
+    encode(d: DataView, t: DataViewTracker, v: Uint16Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            UInt16.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Uint16Array {
+        const size = VarInt.decode(d, t)
+        return new Uint16Array(d.buffer, t.many(size * 2), size)
+    }
+}
+
+export const UInt32Array: DataType<Uint32Array> = {
+    size(value: Uint32Array): number {
+        return VarIntSize(value.length) + value.length
+    },
+    encode(d: DataView, t: DataViewTracker, v: Uint32Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            UInt32.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Uint32Array {
+        const size = VarInt.decode(d, t)
+        return new Uint32Array(d.buffer, t.many(size * 4), size)
+    }
+}
+
+export const Int8ArrayType: DataType<Int8Array> = {
+    size(value: Int8Array): number {
+        return VarIntSize(value.length) + value.length
+    },
+    encode(d: DataView, t: DataViewTracker, v: Int8Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            Int8.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Int8Array {
+        const size = VarInt.decode(d, t)
+        return new Int8Array(d.buffer, t.many(size), size)
+    }
+}
+
+export const Int16ArrayType: DataType<Int16Array> = {
+    size(value: Int16Array): number {
+        return VarIntSize(value.length) + value.length
+    },
+    encode(d: DataView, t: DataViewTracker, v: Int16Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            Int16.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Int16Array {
+        const size = VarInt.decode(d, t)
+        return new Int16Array(d.buffer, t.many(size * 2), size)
+    }
+}
+
+export const Int32ArrayType: DataType<Int32Array> = {
+    size(value: Int32Array): number {
+        return VarIntSize(value.length) + value.length
+    },
+    encode(d: DataView, t: DataViewTracker, v: Int32Array) {
+        VarInt.encode(d, t, v.length)
+        for (let elm of v) {
+            UInt32.encode(d, t, elm)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): Int32Array {
+        const size = VarInt.decode(d, t)
+        return new Int32Array(d.buffer, t.many(size * 4), size)
+    }
+}
+
+export const StrArray: DataType<string[]> = {
+    size(value: string[]): number {
+        let size = 0;
+        for (let string of value) {
+            size += VarIntSize(string.length) + string.length
+        }
+        return size + VarIntSize(value.length)
+    },
+    encode(d: DataView, t: DataViewTracker, v: string[]) {
+        VarInt.encode(d, t, v.length)
+        for (let string of v) {
+            Str.encode(d, t, string)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): string[] {
+        const size = VarInt.decode(d, t)
+        let values: string[] = new Array(size)
+        for (let i = 0; i < size; i++) {
+            values[i] = Str.decode(d, t)
+        }
+        return values
+    }
+}
+
+export const BoolArray: DataType<boolean[]> = {
+    size(value: boolean[]): number {
+        return value.length + VarIntSize(value.length)
+    },
+    encode(d: DataView, t: DataViewTracker, v: boolean[]) {
+        VarInt.encode(d, t, v.length)
+        for (let value of v) {
+            UInt8.encode(d, t, value ? 1 : 0)
+        }
+    },
+    decode(d: DataView, t: DataViewTracker): boolean[] {
+        const size = VarInt.decode(d, t)
+        let values: boolean[] = new Array(size)
+        for (let i = 0; i < size; i++) {
+            values[i] = UInt8.decode(d, t) == 1
+        }
+        return values
+    }
+}
 
 // String
 export const Str: DataType<string> = {

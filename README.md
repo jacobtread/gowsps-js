@@ -22,10 +22,9 @@ can be replaced with the following packet which only takes up 6 bytes
 2 116 101 115 116 2
 ```
 
-Which makes this a much more efficient way of transmitting data between client and server over websockets.
-This is especially noticeable when the type of data that is needing to be sent is a byte array like images which
-would normally have to be converted to base64 before sending them as JSON which greatly increases the
-size of the packet
+Which makes this a much more efficient way of transmitting data between client and server over websockets. This is
+especially noticeable when the type of data that is needing to be sent is a byte array like images which would normally
+have to be converted to base64 before sending them as JSON which greatly increases the size of the packet
 
 ## Create Socket
 
@@ -55,7 +54,7 @@ the `setOpenListener` function with a function as the first argument
 
 ```typescript
 // ...
-socket.setOpenListener( function () {
+socket.setOpenListener(function () {
     // TODO: Send some packets
 })
 ```
@@ -121,17 +120,24 @@ socket.addListener(TestPacket, ({user, name}) => {
 The following table contains the data types that can be specified along with their types in Javascript and Go. The
 javascript contains the range of values on the number types
 
-| Data Type | Javascript Type                    | Go Type |
-|-----------|------------------------------------|---------|
-| Int8      | number ( -128 to 127)              | int8    |
-| Int16     | number (-32768 to 32767)           | int16   |
-| Int32     | number (-2147483648 to 2147483647) | int32   |
-| UInt8     | number (0 to 255)                  | uint8   |
-| UInt16    | number (0 to 65535)                | uint16  |
-| UInt32    | number (0 to 4294967295)           | uint32  |
-| Float32   | number (-3.4e+38 to 3.4e+38)       | float32 |
-| Float64   | number (-1.7e+308 to +1.7e+308)    | float64 |
-| VarInt    | number (0 to 18446744073709551615) | uint64  |
-| Bool      | boolean                            | bool    |
-| Str       | string                             | string  |
-| ByteArray | Uint8Array                         | []byte  |
+| Data Type      | Javascript Type                    | Go Type  |
+|----------------|------------------------------------|----------|
+| Int8           | number ( -128 to 127)              | int8     |
+| Int16          | number (-32768 to 32767)           | int16    |
+| Int32          | number (-2147483648 to 2147483647) | int32    |
+| UInt8          | number (0 to 255)                  | uint8    |
+| UInt16         | number (0 to 65535)                | uint16   |
+| UInt32         | number (0 to 4294967295)           | uint32   |
+| Float32        | number (-3.4e+38 to 3.4e+38)       | float32  |
+| Float64        | number (-1.7e+308 to +1.7e+308)    | float64  |
+| VarInt         | number (0 to 18446744073709551615) | uint64   |
+| Bool           | boolean                            | bool     |
+| BoolArray      | boolean[]                          | []bool   |
+| Str            | string                             | string   |
+| StrArray       | string[]                           | []string |
+| ByteArray      | Uint8Array                         | []byte   |
+| UInt16Array    | Uint16Array                        | []uint16 |
+| UInt32Array    | Uint32Array                        | []uint32 |
+| Int8ArrayType  | Int8Array                          | []int8   |
+| Int16ArrayType | Int16Array                         | []int16  |
+| Int32ArrayType | Int32Array                         | []int32  |

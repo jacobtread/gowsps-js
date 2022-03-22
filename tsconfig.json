@@ -9,6 +9,7 @@
     "strictPropertyInitialization": false,
     "sourceMap": true,
     "esModuleInterop": true,
+    "declaration": true,
     "lib": [
       "esnext",
       "dom"
@@ -17,5 +18,9 @@
   },
   "include": [
     "src/**.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

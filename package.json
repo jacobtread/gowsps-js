@@ -3,10 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "author": "Jacobtread",
-  "main": "src/index.ts",
+  "main": "index.ts",
   "scripts": {
-    "build": "webpack",
-    "watch": "webpack -w"
+    "build": "tsc",
+    "watch": "tsc -w"
   },
   "dependencies": {},
   "devDependencies": {

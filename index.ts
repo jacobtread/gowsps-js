@@ -1,3 +1,102 @@
+export interface Config {
+    reconnectTimeout?: number;
+}
+
+type EventName = keyof EventListeners
+type EventFunction = (event: Event) => any
+
+interface EventListeners {
+    open?: EventFunction,
+    closed?: EventFunction
+}
+
+type PacketListener<T extends PacketStruct> = (packet: PacketConvertedStruct<T>) => any
+type PacketListeners = { [key: number]: PacketListener<any>[] }
+
+
+export class BinarySocket {
+    private readonly url: string | URL;
+    private readonly config: Config;
+
+    private ws: WebSocket;
+    private eventListeners: EventListeners = {};
+    private packetListeners: PacketListeners = {};
+
+    private actors = new Map<number, PacketDefinition<any>>()
+
+    constructor(url: string | URL, config?: Config) {
+        this.url = url;
+        this.config = config ?? {};
+        this.ws = this.createConnection()
+    }
+
+    private createConnection(): WebSocket {
+        const ws = new WebSocket(this.url)
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = (event: Event) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                this.eventListeners.open?.call(this, event)
+            }
+        }
+        ws.onclose = (event: Event) => {
+            this.eventListeners.closed?.call(this, event)
+            console.log('Connection closed', event)
+            if (this.config.reconnectTimeout !== undefined) {
+                setTimeout(() => {
+                    this.ws = this.createConnection();
+                    console.debug('Reconnecting socket')
+                }, this.config.reconnectTimeout)
+            }
+        }
+        ws.onmessage = (event: MessageEvent) => this.onMessage(event)
+        return ws
+    }
+
+    private onMessage(event: MessageEvent) {
+        const dv = new WrappedDataView(event.data as ArrayBuffer)
+        const packetId = dv.getVarInt()
+        const actor = this.actors.get(packetId)
+        if (actor) {
+            const out = actor.decode(dv)
+            const listeners = this.packetListeners[packetId]
+            if (listeners) {
+                for (let listener of listeners) {
+                    listener(out)
+                }
+            }
+        } else {
+            console.error(`No packet actor defined for ${packetId.toString(16)}`)
+        }
+    }
+
+    send(packet: IdentifiedPacket<any>) {
+        const actor = this.actors.get(packet.id)
+        if (actor) {
+            const out = new ArrayBuffer(actor.computeSize(packet))
+            const dv = new WrappedDataView(out)
+            actor.encode(dv, packet)
+            this.ws.send(out)
+        }
+    }
+
+    setEventListener(name: EventName, listener: EventFunction) {
+        this.eventListeners[name] = listener
+    }
+
+    definePacket(packet: PacketDefinition<any>) {
+        this.actors.set(packet.id, packet)
+    }
+
+    addListener<T extends PacketStruct>(definition: PacketDefinition<T>, handler: PacketListener<T>) {
+        const list = this.packetListeners[definition.id]
+        if (list) {
+            list.push(handler)
+        } else {
+            this.packetListeners[definition.id] = [handler]
+        }
+    }
+}
+
 export enum DataType {
     Int8,
     Int16,
@@ -249,7 +348,9 @@ interface Identified {
 }
 
 export type PacketStruct = Record<string, DataType>;
-export type PacketConvertedStruct<Struct extends PacketStruct> = { [Key in keyof Struct]: ConvertedType<Struct[Key]> };
+export type PacketConvertedStruct<Struct extends PacketStruct> = {
+    [Key in keyof Struct]: ConvertedType<Struct[Key]>
+};
 
 export type IdentifiedPacket<T> = T & Identified
 
@@ -309,3 +410,26 @@ export class PacketDefinition<T extends PacketStruct> {
         }
     }
 }
+
+
+const TestPacket = new PacketDefinition(0x02, {
+    name: DataType.String,
+    user: DataType.UInt8
+}, ['name', 'user'])
+
+export function Test() {
+    const socket = new BinarySocket('ws://localhost:8080/ws')
+    socket.definePacket(TestPacket)
+
+    socket.addListener(TestPacket, ({user, name}) => {
+        console.log(user, name)
+    })
+
+    socket.setEventListener('open', function () {
+        socket.send(TestPacket.create({
+            user: 2,
+            name: 'Test User'
+        }))
+    })
+}
+Test()

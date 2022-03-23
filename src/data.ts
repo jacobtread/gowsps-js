@@ -158,12 +158,17 @@ export const VarInt: DataType<number> = {
     },
     decode(d: DataView, t: DataViewTracker): number {
         let value = 0, bitOffset = 0, byte = 0;
-        do {
-            if (bitOffset == 35) return value
-            byte = UInt8.decode(d, t);
-            value |= ((byte & 127) << bitOffset)
+        for (let i = 0; i < 10; i++) {
+            byte = UInt8.decode(d, t)
+            if (byte < 0x80) {
+                if (i == 9 && byte > 1) {
+                    return value
+                }
+                return value | byte << bitOffset
+            }
+            value |= (byte & 0x7f) << bitOffset
             bitOffset += 7
-        } while ((value & 128) != 0)
+        }
         return value
     }
 }

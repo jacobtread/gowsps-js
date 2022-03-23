@@ -50,16 +50,28 @@ const socket = new BinarySocket(SOCKET_URL, {
 ```
 
 After creating a socket you must wait for the socket to become open before you can send any packets
-the `setOpenListener` function with a function as the first argument
+the `addListener` function with a function as the first argument
 
 ```typescript
 // ...
-socket.setOpenListener(function () {
+socket.addEventListener('open', () => {
     // TODO: Send some packets
 })
 ```
 
-There is also a listener for when the connection is closed named `setCloseListener`
+> The available events are 'open' and 'close' if a reconnect timeout
+> is specified in the config the 'close' event will be invoked before 
+> reconnecting.
+
+you can remove listeners using the `removeEventListener` function. Providing
+it a function as the second argument will only remove that event listener function
+but providing no second argument will remove all event listeners for that event.
+
+```typescript
+socket.removeEventListener('open')
+// ..or
+socket.removeEventListener('open', someFunction)
+```
 
 ## Defining A Packet
 
@@ -86,22 +98,39 @@ const TestPacket = new PacketDefinition(0x02 /* this is the id of the packet */,
 After defining a packet you then need to add this packet definition to your `BinarySocket` instance. The following code
 showcases how to do so.
 
+> Only define packets that you will be receiving to avoid collisions with client packets
+> client packet definitions only need to be provided to the `socket.send` function
+
 ```typescript
 // ...
 socket.definePacket(TestPacket)
 ```
 
-## Creating a packet
+## Sending a packet
 
-The following code shows how to create packets from packet definitions so that you can send the packet. The create
-function requires an object which has all the key value specified in the definition
+The following code shows how to create a send a packet. You must provide the 
 
 ```typescript
 // ...
-TestPacket.create({
+socket.send(TestPacket, {
     name: 'Test User',
     user: 2
-})
+});
+```
+
+### Create a packet without sending
+If you want to create a packet ahead of time without actually sending it to the
+server, yet you can use the `socket.createBuffer` function to create an ArrayBuffer 
+that contains the packet contents which you can later send using `socket.sendBuffer`
+
+```typescript
+const buffer = socket.createBuffer(TestPacket, {
+    name: 'Test User',
+    user: 2
+});
+
+// Send the buffer later on
+socket.sendBuffer(buffer);
 ```
 
 ## Listening for a packet
@@ -171,11 +200,27 @@ In the following code the field `values` will be equivalent to string[]. This
 will work with any data type including user created structs
 
 ```typescript
+import { Str, ArrayType, UInt8 } from "gowsps-js";
+
+
 const TestPacket = new PacketDefinition(0x02, {
     name: Str,
     user: UInt8,
     values: ArrayType(Str)
 }, ['name', 'user', 'values'])
+```
+
+### Map encodings
+
+If you would like to create a map of key -> value pairs of which the keys are not always
+the same you can use the `MapType` DataType generator function
+
+```typescript
+import { Str, MapType, UInt32 } from "gowsps-js";
+
+const ScoresPacket = new PacketDefinition(0x09, {
+    scores: MapType(Str, UInt32)
+}, ['scores'])
 ```
 
 ### Custom encodings

@@ -1,5 +1,5 @@
 import { PacketDefinition } from "./packets";
-import { DataViewTracker, IdentifiedStruct, StructLayout, StructTyped, VarInt, VarIntSize } from "./data";
+import { DataViewTracker, StructLayout, StructTyped, VarInt } from "./data";
 
 export interface Config {
     reconnectTimeout?: number;
@@ -8,6 +8,10 @@ export interface Config {
 type EventFunction = (event: Event) => any
 type PacketListener<T extends StructLayout, K extends StructTyped<T>> = (packet: K) => any;
 type PacketListeners = { [key: number]: PacketListener<any, any>[] }
+type PacketInterceptor = (id: number, data: StructTyped<any>) => any
+type EventNames = 'open' | 'close'
+
+type EventListeners = Record<EventNames, EventFunction[] | undefined>;
 
 /**
  * A wrapper around the websocket class to provide functionality
@@ -23,8 +27,11 @@ export class BinarySocket {
     private readonly url: string | URL;
 
     // Open and close event listeners
-    private openListener?: EventFunction;
-    private closeListener?: EventFunction;
+    private eventListeners: EventListeners = {
+        open: undefined,
+        close: undefined
+    }
+    private packetInterceptor?: PacketInterceptor;
 
     // Listeners for each packet types
     private packetListeners: PacketListeners = {};
@@ -60,11 +67,11 @@ export class BinarySocket {
         ws.binaryType = 'arraybuffer';
         ws.onopen = (event: Event) => {
             if (ws.readyState === WebSocket.OPEN) {
-                this.openListener?.call(this, event)
+                this.event('open', event)
             }
         }
         ws.onclose = (event: Event) => {
-            this.closeListener?.call(this, event)
+            this.event('close', event)
             console.log('Connection closed', event)
             if (this.config.reconnectTimeout !== undefined) {
                 setTimeout(() => {
@@ -93,35 +100,80 @@ export class BinarySocket {
         return ws
     }
 
-    send(packet: IdentifiedStruct<any>) {
-        const definition = this.definitions[packet.id]
-        if (definition) {
-            const buffer = new ArrayBuffer(VarIntSize(definition.id) + definition.computeSize(packet));
-            const view = new DataView(buffer);
-            definition.encode(view, this.writeTracker, packet)
-            this.ws.send(buffer)
-        }
-        this.writeTracker.reset()
+    send<T extends StructLayout>(definition: PacketDefinition<T>, data: StructTyped<T>) {
+        const buffer = definition.create(this.writeTracker, data)
+        this.ws.send(buffer)
+    }
+
+    createBuffer<T extends StructLayout>(definition: PacketDefinition<T>, data: StructTyped<T>): ArrayBuffer {
+        return definition.create(this.writeTracker, data)
+    }
+
+    sendBuffer(data: ArrayBuffer) {
+        this.ws.send(data)
     }
 
     definePacket(packet: PacketDefinition<any>) {
         this.definitions[packet.id] = packet
     }
 
+    definePackets(...packets: PacketDefinition<any>[]) {
+        for (let packet of packets) {
+            this.definitions[packet.id] = packet
+        }
+    }
+
     addListener<T extends StructLayout>(definition: PacketDefinition<T>, handler: PacketListener<T, StructTyped<T>>) {
-        const list = this.packetListeners[definition.id]
-        if (list) {
-            list.push(handler)
+        const listeners = this.packetListeners[definition.id]
+        if (listeners) {
+            listeners.push(handler)
         } else {
             this.packetListeners[definition.id] = [handler]
         }
     }
 
-    setOpenListener(listener: EventFunction) {
-        this.openListener = listener
+    removeListener<T extends StructLayout>(definition: PacketDefinition<T>, handler?: PacketListener<T, StructTyped<T>>) {
+        const id = definition.id;
+        const listeners = this.packetListeners[id]
+        if (listeners) {
+            if (handler) {
+                this.packetListeners[id] = listeners.filter(v => v !== handler)
+            } else {
+                this.packetListeners[id] = []
+            }
+        }
     }
 
-    setCloseListener(listener: EventFunction) {
-        this.closeListener = listener
+    private event(name: EventNames, data: Event) {
+        const listeners = this.eventListeners[name];
+        if (listeners) {
+            for (let listener of listeners) {
+                listener(data)
+            }
+        }
+    }
+
+    addEventListener(event: EventNames, listener: EventFunction) {
+        const listeners = this.eventListeners[event]
+        if (listeners) {
+            listeners.push(listener)
+        } else {
+            this.eventListeners[event] = [listener]
+        }
+    }
+
+    removeEventListener(event: EventNames, listener?: EventFunction) {
+        const listeners = this.eventListeners[event]
+        if (listeners) {
+            if (listener) {
+                this.eventListeners[event] = listeners.filter(v => v !== listener)
+            } else {
+                this.eventListeners[event] = undefined
+            }
+        }
+    }
+
+    setInterceptor(interceptor: PacketInterceptor) {
+        this.packetInterceptor = interceptor
     }
 }

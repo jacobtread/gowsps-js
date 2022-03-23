@@ -5,11 +5,6 @@ export type DataSizeFunction<N> = (value: N) => number;
 // Either the size as a number or a function which takes the value and returns its size
 export type DataSize<N> = number | DataSizeFunction<N>;
 
-// Identity represents an object with an ID value
-type Identity = { readonly id: number }
-// Represents an object that has an ID property
-type Identified<T> = T & Identity
-
 /**
  * A simple class for tracking the offset progress. Used to keep track
  * of the view offset for the DataView
@@ -240,9 +235,6 @@ export type StructLayout = Record<string, DataType<any>>;
 export type StructTyped<Origin extends StructLayout> = {
     [Key in keyof Origin]: Origin[Key] extends DataType<infer V> ? V : unknown
 }
-
-// Represents a struct that has an ID applied to it
-export type IdentifiedStruct<T extends StructLayout> = Identified<StructTyped<T>>
 
 // Map keys are only allowed to be numbers or strings
 export type MapKey = number | string

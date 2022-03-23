@@ -1,4 +1,4 @@
-import { DataType, DataViewTracker, IdentifiedStruct, StructLayout, StructTyped } from "./data";
+import { DataType, DataViewTracker, StructLayout, StructTyped, VarInt, VarIntSize } from "./data";
 
 
 // Represents a key of a struct
@@ -68,19 +68,26 @@ export class PacketDefinition<T extends StructLayout> extends StructDefinition<T
         this.id = id;
     }
 
-
     /**
-     * Create a new packet using the packet fields.
-     * This function adds the packet id to the provided
-     * packet data so that it can be sent
+     * Function for encoding the packet into an array buffer.
+     * this will reset write tracker after writing into the
+     * buffer.
      *
-     * @param data The data for the packet
-     * @return The packet with its id added
+     * Encoding:
+     * ID     VarInt
+     * Data   StructTyped<T>
+     *
+     *
+     * @param writeTracker The write tracker to keep track of write progress
+     * @param data The packet data to write
+     * @return An array buffer of the binary packet data
      */
-    create(data: StructTyped<T>): IdentifiedStruct<T> {
-        return {
-            id: this.id,
-            ...data
-        }
+    create(writeTracker: DataViewTracker, data: StructTyped<T>): ArrayBuffer {
+        const buffer = new ArrayBuffer(VarIntSize(this.id) + this.computeSize(data));
+        const view = new DataView(buffer);
+        VarInt.encode(view, writeTracker, this.id)
+        super.encode(view, writeTracker, data)
+        writeTracker.reset()
+        return buffer
     }
 }

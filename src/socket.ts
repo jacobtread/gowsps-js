@@ -93,7 +93,7 @@ export class BinarySocket {
                     }
                 }
             } else {
-                console.error(`No packet actor defined for ${id.toString(16)}`)
+                console.error(`No packet definition defined for ${id.toString(16)}`)
             }
             this.readTracker.reset()
         }

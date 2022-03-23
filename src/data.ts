@@ -173,6 +173,28 @@ export const VarInt: DataType<number> = {
     }
 }
 
+/**
+ * Calculates the size of the provided values based on
+ * the provided type value. If the size is fixed then
+ * its just multiplied by the value count. If the value
+ * is a function its run on each of the values in the array
+ *
+ * @param values The values to calculate the size for
+ * @param type The type of data (contains the size value)
+ */
+function getSizeOf<T, D extends DataType<T>>(values: T[], type: D): number {
+    const s = type.size
+    if (typeof s === 'number') {
+        return s * values.length
+    } else {
+        let size = 0;
+        for (let value of values) {
+            size += s(value)
+        }
+        return size
+    }
+}
+
 // The function for determining the size of a VarInt (used a lot so stored here)
 export const VarIntSize: DataSizeFunction<number> = VarInt.size as DataSizeFunction<number>
 
@@ -211,40 +233,123 @@ export const Str: DataType<string> = {
     }
 }
 
-
+// Struct layouts are object mappings of keys to data types
 export type StructLayout = Record<string, DataType<any>>;
 
+// Struct typed are object mappings of keys with the js types of data types
 export type StructTyped<Origin extends StructLayout> = {
     [Key in keyof Origin]: Origin[Key] extends DataType<infer V> ? V : unknown
 }
 
+// Represents a struct that has an ID applied to it
 export type IdentifiedStruct<T extends StructLayout> = Identified<StructTyped<T>>
 
+// Map keys are only allowed to be numbers or strings
+export type MapKey = number | string
+
+/**
+ * Encodes the provided data map struct (object with keys and values) as the
+ * length of pairs and each key value pair encoded in their respective data types.
+ *
+ * Only Str or Int types can be used as keys for this struct
+ *
+ * This type should be used when the keys are dynamically generated otherwise
+ * the {@see Struct} should be used instead
+ *
+ * Encoding:
+ *
+ * Length    VarInt
+ * for Length {
+ *     Key    DataType<A>
+ *     Value  DataType<B>
+ * }
+ *
+ *
+ * @param keyType The data type of the key's (restricted to string and numbers)
+ * @param valueType The data type of the value's
+ * @constructor Creates a new data type for the provided key value pairs
+ */
+export function MapType<A extends MapKey, B>(keyType: DataType<A>, valueType: DataType<B>): DataType<Record<A, B>> {
+    return {
+        size(value: Record<A, B>): number {
+            const keys = Object.keys(value);
+            return VarIntSize(keys.length)
+                + getSizeOf(keys as A[], keyType)
+                + getSizeOf(Object.values<B>(value), valueType);
+        },
+        encode(d: DataView, t: DataViewTracker, v: Record<A, B>): void {
+            const keys = Object.keys(v) as A[];
+            VarInt.encode(d, t, keys.length);
+            for (let key of keys) {
+                const value = v[key];
+                keyType.encode(d, t, key);
+                valueType.encode(d, t, value);
+            }
+        },
+        decode(d: DataView, t: DataViewTracker): Record<A, B> {
+            const length = VarInt.decode(d, t)
+            const out: any = {}
+            for (let i = 0; i < length; i++) {
+                const key = keyType.decode(d, t)
+                out[key] = valueType.decode(d, t)
+            }
+            return out;
+        },
+    }
+}
+
+/**
+ * Creates a DataType for encoding the provided struct of known key value pairs.
+ * The struct will be encoded in the order provided as the keys argument
+ *
+ * Values are encoding according to the data type provided to each key in the
+ * struct layout. Keys are known only by the encoder and decoder they are not
+ * included in the encoded struct.
+ *
+ * @param struct The struct layout includes a key value pair of keys to DataTypes
+ * @param keys The order of the keys to encode / decode
+ * @constructor Creates a new struct definition DataType
+ */
 export function Struct<T extends StructLayout>(struct: T, keys: StructKeys<T>): DataType<StructTyped<T>> {
     const definition = new StructDefinition<T>(struct, keys)
     return {
         size(value: StructTyped<T>): number {
             return definition.computeSize(value)
         },
-        decode(d: DataView, t: DataViewTracker): StructTyped<T> {
-            return definition.decode(d, t)
-        },
         encode(d: DataView, t: DataViewTracker, v: StructTyped<T>) {
             definition.encode(d, t, v)
+        },
+        decode(d: DataView, t: DataViewTracker): StructTyped<T> {
+            return definition.decode(d, t)
         }
     }
 }
 
+/***
+ * Creates a DataType for an array of structs. This is a shortcut to replace the {@see ArrayType}
+ * function when the DataType is a struct. This skips the additional step of calling {@see Struct}
+ * before calling {@see ArrayType}
+ *
+ * Encoding:
+ *
+ * Length VarInt
+ * for Length {
+ *    Struct DataType<StructTyped<T>>
+ * }
+ *
+ * @param struct The struct layout includes a key value pair of keys to DataTypes
+ * @param keys The order of the keys to encode / decode
+ * @constructor Creates a new array struct definition DataType
+ */
 export function StructArray<T extends StructLayout>(struct: T, keys: StructKeys<T>): DataType<StructTyped<T>[]> {
     const definition = new StructDefinition<T>(struct, keys)
     return {
-        decode(d: DataView, t: DataViewTracker): StructTyped<T>[] {
-            const count = VarInt.decode(d, t)
-            const out: StructTyped<T>[] = new Array(count)
-            for (let i = 0; i < count; i++) {
-                out[i] = definition.decode(d, t)
+        size(value: StructTyped<T>[]): number {
+            let size = 0;
+            for (let elm of value) {
+                size += definition.computeSize(elm)
             }
-            return out;
+            return VarIntSize(value.length) + size
         },
         encode(d: DataView, t: DataViewTracker, v: StructTyped<T>[]) {
             VarInt.encode(d, t, v.length)
@@ -252,25 +357,35 @@ export function StructArray<T extends StructLayout>(struct: T, keys: StructKeys<
                 definition.encode(d, t, elm)
             }
         },
-        size(value: StructTyped<T>[]): number {
-            let size = 0;
-            for (let elm of value) {
-                size += definition.computeSize(elm)
+        decode(d: DataView, t: DataViewTracker): StructTyped<T>[] {
+            const count = VarInt.decode(d, t)
+            const out: StructTyped<T>[] = new Array(count)
+            for (let i = 0; i < count; i++) {
+                out[i] = definition.decode(d, t)
             }
-            return VarIntSize(value.length) + size
+            return out;
         }
     }
 }
 
+/**
+ * Creates a DataType for encoding an array of a DataType if you are using an array of structs
+ * that you are not using anywhere else you should use the {@see StructArray} function instead.
+ *
+ * Encoding:
+ *
+ * Length VarInt
+ * for Length {
+ *     Value DataType<T>
+ * }
+ *
+ * @param type The type of data this array should encode
+ * @constructor Creates a new DataType array DataType
+ */
 export function ArrayType<T>(type: DataType<T>): DataType<T[]> {
     return {
-        decode(d: DataView, t: DataViewTracker): T[] {
-            const count = VarInt.decode(d, t)
-            const out: T[] = new Array(count)
-            for (let i = 0; i < count; i++) {
-                out[i] = type.decode(d, t)
-            }
-            return out
+        size(value: T[]) {
+            return getSizeOf(value, type) + VarIntSize(value.length)
         },
         encode(d: DataView, t: DataViewTracker, v: T[]): void {
             VarInt.encode(d, t, v.length)
@@ -278,17 +393,13 @@ export function ArrayType<T>(type: DataType<T>): DataType<T[]> {
                 type.encode(d, t, value)
             }
         },
-        size(value: T[]) {
-            const size = type.size
-            if (typeof size === 'number') {
-                return (size * value.length) + VarIntSize(value.length)
-            } else {
-                let s = 0;
-                for (let elm of value) {
-                    s += size(elm)
-                }
-                return s + VarIntSize(value.length)
+        decode(d: DataView, t: DataViewTracker): T[] {
+            const count = VarInt.decode(d, t)
+            const out: T[] = new Array(count)
+            for (let i = 0; i < count; i++) {
+                out[i] = type.decode(d, t)
             }
+            return out
         }
     }
 }
